@@ -94,7 +94,6 @@ class CFG:
                     block.add_edge_to(target, key)
                     stack.append(target)
 
-
     def __str__(self) -> str:
         ids: dict[int, int] = {}
         order: list[BasicBlock] = []
@@ -144,7 +143,7 @@ FALSE_STMT = _const(False)
 
 def _stmt_helper(stmt: ast.stmt, _cur: BasicBlock) -> BasicBlock:
     match stmt:
-        case ast.Assign() | ast.Expr():
+        case ast.Assign() | ast.AugAssign() | ast.Expr():
             return _cur.append_stmt(stmt)
         case ast.If():
             if_cond_block = BasicBlock(ast.Expr(stmt.test))
@@ -163,17 +162,32 @@ def _stmt_helper(stmt: ast.stmt, _cur: BasicBlock) -> BasicBlock:
                 if_cond_block.add_edge_to(if_join_block, FALSE_STMT)
 
             return if_join_block
+        case ast.While():  # While(expr test, stmt* body, stmt* orelse)
+            while_cond_block = BasicBlock(ast.Expr(stmt.test))
+            _cur.add_edge_to(while_cond_block)
+            while_join_block = BasicBlock()
 
-        case ast.For():
-            raise NotImplementedError
-        case ast.While():
-            raise NotImplementedError
-        case ast.Pass():
-            raise NotImplementedError
+            while_body_block = BasicBlock()
+            while_cond_block.add_edge_to(while_body_block, TRUE_STMT)
+            _stmts_helper(stmt.body, while_body_block).add_edge_to(while_cond_block)
+            
+            if stmt.orelse:
+                while_else_block = BasicBlock()
+                while_cond_block.add_edge_to(while_else_block, FALSE_STMT)
+                _stmts_helper(stmt.orelse, while_else_block).add_edge_to(while_join_block)
+            else:
+                while_cond_block.add_edge_to(while_join_block, FALSE_STMT)
+
+            return while_join_block
         case ast.Break():
             raise NotImplementedError
-        case ast.Continue():
-            raise NotImplementedError
-        case _:
+        # case ast.For():
+        #     raise NotImplementedError
+        # case ast.Pass():
+        #     raise NotImplementedError
+        # case ast.Continue():
+        #     raise NotImplementedError
+        case x:
+            print(x)
             raise NotImplementedError
     raise NotImplementedError
