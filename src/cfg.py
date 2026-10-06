@@ -70,7 +70,7 @@ class CFG:
     @classmethod
     def from_ast(cls, body: list[ast.stmt]) -> "CFG":
         root = BasicBlock()
-        _stmts_helper(body, root)
+        CFGBuilder().stmts_helper(body, root)
         res = cls(root)
         res._clean()
         return res
@@ -122,17 +122,6 @@ class CFG:
         return "\n".join(lines)
 
 
-def _stmts_helper(stmts: list[ast.stmt], _cur: BasicBlock) -> BasicBlock:
-    if len(stmts) == 0:
-        raise ValueError(stmts)
-
-    cur = _cur
-    for stmt in stmts:
-        cur = _stmt_helper(stmt, cur)
-
-    return cur  # last processed stmt
-
-
 def _const(value: str | bytes | bool | complex | None | EllipsisType) -> ast.stmt:
     return ast.Expr(ast.Constant(value))
 
@@ -141,53 +130,75 @@ TRUE_STMT = _const(True)
 FALSE_STMT = _const(False)
 
 
-def _stmt_helper(stmt: ast.stmt, _cur: BasicBlock) -> BasicBlock:
-    match stmt:
-        case ast.Assign() | ast.AugAssign() | ast.Expr():
-            return _cur.append_stmt(stmt)
-        case ast.If():
-            if_cond_block = BasicBlock(ast.Expr(stmt.test))
-            _cur.add_edge_to(if_cond_block)
-            if_join_block = BasicBlock()
+class CFGBuilder:
+    def stmts_helper(
+        self,
+        stmts: list[ast.stmt],
+        _cur: BasicBlock,
+    ) -> BasicBlock:
+        if len(stmts) == 0:
+            raise ValueError(stmts)
 
-            if_then_block = BasicBlock()
-            if_cond_block.add_edge_to(if_then_block, TRUE_STMT)
-            _stmts_helper(stmt.body, if_then_block).add_edge_to(if_join_block)
+        cur = _cur
+        for stmt in stmts:
+            cur = self.stmt_helper(stmt, cur)
 
-            if len(stmt.orelse) > 0:
-                if_else_block = BasicBlock()
-                if_cond_block.add_edge_to(if_else_block, FALSE_STMT)
-                _stmts_helper(stmt.orelse, if_else_block).add_edge_to(if_join_block)
-            else:
-                if_cond_block.add_edge_to(if_join_block, FALSE_STMT)
+        return cur  # last processed stmt
 
-            return if_join_block
-        case ast.While():  # While(expr test, stmt* body, stmt* orelse)
-            while_cond_block = BasicBlock(ast.Expr(stmt.test))
-            _cur.add_edge_to(while_cond_block)
-            while_join_block = BasicBlock()
+    def stmt_helper(
+        self,
+        stmt: ast.stmt,
+        _cur: BasicBlock,
+    ) -> BasicBlock:
+        match stmt:
+            case ast.Assign() | ast.AugAssign() | ast.Expr():
+                return _cur.append_stmt(stmt)
+            case ast.If():
+                if_cond_block = BasicBlock(ast.Expr(stmt.test))
+                _cur.add_edge_to(if_cond_block)
+                if_join_block = BasicBlock()
 
-            while_body_block = BasicBlock()
-            while_cond_block.add_edge_to(while_body_block, TRUE_STMT)
-            _stmts_helper(stmt.body, while_body_block).add_edge_to(while_cond_block)
-            
-            if stmt.orelse:
-                while_else_block = BasicBlock()
-                while_cond_block.add_edge_to(while_else_block, FALSE_STMT)
-                _stmts_helper(stmt.orelse, while_else_block).add_edge_to(while_join_block)
-            else:
-                while_cond_block.add_edge_to(while_join_block, FALSE_STMT)
+                if_then_block = BasicBlock()
+                if_cond_block.add_edge_to(if_then_block, TRUE_STMT)
+                self.stmts_helper(stmt.body, if_then_block).add_edge_to(if_join_block)
 
-            return while_join_block
-        case ast.Break():
-            raise NotImplementedError
-        # case ast.For():
-        #     raise NotImplementedError
-        # case ast.Pass():
-        #     raise NotImplementedError
-        # case ast.Continue():
-        #     raise NotImplementedError
-        case x:
-            print(x)
-            raise NotImplementedError
-    raise NotImplementedError
+                if len(stmt.orelse) > 0:
+                    if_else_block = BasicBlock()
+                    if_cond_block.add_edge_to(if_else_block, FALSE_STMT)
+                    self.stmts_helper(stmt.orelse, if_else_block).add_edge_to(if_join_block)
+                else:
+                    if_cond_block.add_edge_to(if_join_block, FALSE_STMT)
+
+                return if_join_block
+            case ast.While():  # While(expr test, stmt* body, stmt* orelse)
+                while_cond_block = BasicBlock(ast.Expr(stmt.test))
+                _cur.add_edge_to(while_cond_block)
+                while_join_block = BasicBlock()
+
+                while_body_block = BasicBlock()
+                while_cond_block.add_edge_to(while_body_block, TRUE_STMT)
+                self.stmts_helper(stmt.body, while_body_block).add_edge_to(while_cond_block)
+
+                if stmt.orelse:
+                    while_else_block = BasicBlock()
+                    while_cond_block.add_edge_to(while_else_block, FALSE_STMT)
+                    self.stmts_helper(stmt.orelse, while_else_block).add_edge_to(
+                        while_join_block
+                    )
+                else:
+                    while_cond_block.add_edge_to(while_join_block, FALSE_STMT)
+
+                return while_join_block
+            case ast.Break():
+                _cur.append_stmt(stmt)
+                return _cur
+            # case ast.For():
+            #     raise NotImplementedError
+            # case ast.Pass():
+            #     raise NotImplementedError
+            # case ast.Continue():
+            #     raise NotImplementedError
+            case _:
+                print(stmt)
+                raise NotImplementedError
+        raise ValueError("???")
