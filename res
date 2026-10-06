@@ -5,8 +5,10 @@ digraph "clustertests/dataset/while_else_break.py" {
 	2 [label="while do:
 "]
 	3 [label="print('делаем итерацию')
+print('123123')
 "]
-	"3_calls" [label=print shape=box]
+	"3_calls" [label="print
+print" shape=box]
 	3 -> "3_calls" [label=calls style=dashed]
 	4 [label="print('вышли из цикла')
 "]
