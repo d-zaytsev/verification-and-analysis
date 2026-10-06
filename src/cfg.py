@@ -53,7 +53,9 @@ class BasicBlock:
 
     def add_edge_to(self, block: "BasicBlock", const: ast.stmt | None = None) -> None:
         if const in self._edges:
-            raise ValueError(const)
+            raise ValueError(
+                f"Edge with const {const!r} already exist in {self!s}{self._edges!r}"
+            )
         self._edges[const] = block
 
     def remove_edge(self, const: ast.stmt | None) -> None:
@@ -131,6 +133,11 @@ FALSE_STMT = _const(False)
 
 
 class CFGBuilder:
+    _ctx_break: list[BasicBlock]
+
+    def __init__(self) -> None:
+        self._ctx_break = []
+
     def stmts_helper(
         self,
         stmts: list[ast.stmt],
@@ -142,6 +149,9 @@ class CFGBuilder:
         cur = _cur
         for stmt in stmts:
             cur = self.stmt_helper(stmt, cur)
+
+            if self._ctx_break:
+                break
 
         return cur  # last processed stmt
 
@@ -165,7 +175,9 @@ class CFGBuilder:
                 if len(stmt.orelse) > 0:
                     if_else_block = BasicBlock()
                     if_cond_block.add_edge_to(if_else_block, FALSE_STMT)
-                    self.stmts_helper(stmt.orelse, if_else_block).add_edge_to(if_join_block)
+                    self.stmts_helper(stmt.orelse, if_else_block).add_edge_to(
+                        if_join_block
+                    )
                 else:
                     if_cond_block.add_edge_to(if_join_block, FALSE_STMT)
 
@@ -177,7 +189,16 @@ class CFGBuilder:
 
                 while_body_block = BasicBlock()
                 while_cond_block.add_edge_to(while_body_block, TRUE_STMT)
-                self.stmts_helper(stmt.body, while_body_block).add_edge_to(while_cond_block)
+                self.stmts_helper(stmt.body, while_body_block).add_edge_to(
+                    while_cond_block
+                )
+
+                if self._ctx_break:
+                    break_block = self._ctx_break.pop(0)
+
+                    if break_block is while_body_block:
+                        while_body_block.remove_edge(None)
+                    break_block.add_edge_to(while_join_block)
 
                 if stmt.orelse:
                     while_else_block = BasicBlock()
@@ -191,6 +212,7 @@ class CFGBuilder:
                 return while_join_block
             case ast.Break():
                 _cur.append_stmt(stmt)
+                self._ctx_break.append(_cur)
                 return _cur
             # case ast.For():
             #     raise NotImplementedError

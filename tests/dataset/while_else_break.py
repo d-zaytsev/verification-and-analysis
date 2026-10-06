@@ -1,6 +1,6 @@
 do = True
 
-while do:
+while do == True:
     print("делаем итерацию")
     break
     print("123123")
