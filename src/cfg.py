@@ -10,7 +10,7 @@ class BasicBlock:
 
     _stmts: list[ast.stmt]
     """List of block sequential statements."""
-    _edges: dict[ast.stmt | None, "BasicBlock"]
+    _edges: dict[ast.match_case | ast.stmt | None, "BasicBlock"]
     """Dict of edges that transfer control from one block to another
        ("the program may take that path")."""
 
@@ -18,14 +18,14 @@ class BasicBlock:
         self._stmts = (
             stmts if isinstance(stmts, list) else [stmts] if stmts is not None else []
         )
-        self._edges: dict[ast.stmt | None, BasicBlock] = {}
+        self._edges = {}
 
     @property
     def stmts(self) -> list[ast.stmt]:
         return self._stmts.copy()
 
     @property
-    def edges(self) -> dict[ast.stmt | None, "BasicBlock"]:
+    def edges(self) -> dict[ast.match_case | ast.stmt | None, "BasicBlock"]:
         return self._edges.copy()
 
     @property
@@ -51,12 +51,14 @@ class BasicBlock:
     def extend_stmts(self, block: "BasicBlock") -> None:
         self._stmts.extend(block.stmts)
 
-    def add_edge_to(self, block: "BasicBlock", const: ast.stmt | None = None) -> None:
+    def add_edge_to(
+        self, block: "BasicBlock", const: ast.match_case | ast.stmt | None = None
+    ) -> None:
         if const in self._edges:
             raise ValueError(f"Edge with const {const!r} already exist in {self!s}")
         self._edges[const] = block
 
-    def remove_edge(self, const: ast.stmt | None) -> None:
+    def remove_edge(self, const: ast.match_case | ast.stmt | None) -> None:
         if const in self._edges:
             del self._edges[const]
 
@@ -263,6 +265,36 @@ class CFGBuilder:
                     for_main_block.add_edge_to(for_join_block, FALSE_STMT)
 
                 return for_join_block
+            case ast.Match():  # Match(expr subject, match_case* cases)
+                match_main_block = BasicBlock(
+                    ast.copy_location(ast.Match(stmt.subject, []), stmt)
+                )
+                _cur.add_edge_to(match_main_block)
+                match_join_block = BasicBlock()
+
+                for case in stmt.cases:
+                    match_case_body_block = BasicBlock()
+                    self.stmts_helper(case.body, match_case_body_block).add_edge_to(
+                        match_join_block
+                    )
+                    case_label = ast.copy_location(
+                        ast.match_case(case.pattern, case.guard, []), case
+                    )
+                    match_main_block.add_edge_to(match_case_body_block, case_label)
+
+                last_case = stmt.cases[-1]
+                is_exhaustive = (
+                    isinstance(last_case.pattern, ast.MatchAs)
+                    and last_case.pattern.pattern is None
+                    and last_case.guard is None
+                )
+                if not is_exhaustive:
+                    default_label = ast.copy_location(
+                        ast.match_case(ast.MatchAs(), None, []), stmt
+                    )
+                    match_main_block.add_edge_to(match_join_block, default_label)
+
+                return match_join_block
             case _:
                 print(stmt)
                 raise NotImplementedError

@@ -9,7 +9,9 @@ DATASET_DIR = Path(__file__).parent / "dataset"
 DATASET_FILES = sorted(DATASET_DIR.glob("*.py"))
 
 
-@pytest.mark.parametrize("source_file", DATASET_FILES, ids=[f.stem for f in DATASET_FILES])
+@pytest.mark.parametrize(
+    "source_file", DATASET_FILES, ids=[f.stem for f in DATASET_FILES]
+)
 def test_cfg(source_file: Path) -> None:
     expected_file = source_file.with_suffix(".cfg")
     assert expected_file.exists(), f"Missing compare file '{expected_file.name}'"

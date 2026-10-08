@@ -16,6 +16,6 @@ match code:
         status = "Unauthorized"
     case 403:
         status = "Forbidden"
-        
+
 
 print(status)
