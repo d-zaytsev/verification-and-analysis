@@ -142,9 +142,11 @@ FALSE_STMT = _const(False)
 
 class CFGBuilder:
     _ctx_break: list[BasicBlock]
+    _ctx_continue: list[BasicBlock]
 
     def __init__(self) -> None:
         self._ctx_break = []
+        self._ctx_continue = []
 
     def stmts_helper(
         self,
@@ -161,7 +163,7 @@ class CFGBuilder:
             inside_single_block = new_block is cur
             cur = new_block
 
-            if inside_single_block and self._ctx_break:
+            if inside_single_block and (self._ctx_break or self._ctx_continue):
                 cur = new_block
                 break
 
@@ -206,12 +208,13 @@ class CFGBuilder:
                 )
 
                 if self._ctx_break:
-                    break_block = self._ctx_break.pop(0)
-                    break_block_child = break_block.edges[None]
-                    break_block.remove_edge(None)
-                    print(while_cond_block)
-                    print("break_block_child", break_block_child)
-                    break_block.add_edge_to(while_join_block)
+                    while_break_block = self._ctx_break.pop(0)
+                    while_break_block.remove_edge(None)
+                    while_break_block.add_edge_to(while_join_block)
+                if self._ctx_continue:
+                    while_continue_block = self._ctx_continue.pop(0)
+                    while_continue_block.remove_edge(None)
+                    while_continue_block.add_edge_to(while_cond_block)
 
                 if stmt.orelse:
                     while_else_block = BasicBlock()
@@ -227,11 +230,13 @@ class CFGBuilder:
                 _cur.append_stmt(stmt)
                 self._ctx_break.append(_cur)
                 return _cur
+            case ast.Continue():
+                _cur.append_stmt(stmt)
+                self._ctx_continue.append(_cur)
+                return _cur
             # case ast.For():
             #     raise NotImplementedError
             # case ast.Pass():
-            #     raise NotImplementedError
-            # case ast.Continue():
             #     raise NotImplementedError
             case _:
                 print(stmt)
