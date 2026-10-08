@@ -234,10 +234,35 @@ class CFGBuilder:
                 _cur.append_stmt(stmt)
                 self._ctx_continue.append(_cur)
                 return _cur
-            # case ast.For():
-            #     raise NotImplementedError
-            # case ast.Pass():
-            #     raise NotImplementedError
+            case ast.For():  # For(expr target, expr iter, stmt* body, stmt* orelse, string? type_comment)
+                for_main_block = BasicBlock(
+                    ast.copy_location(ast.For(stmt.target, stmt.iter, [], []), stmt)
+                )
+                _cur.add_edge_to(for_main_block)
+                for_join_block = BasicBlock()
+
+                for_body_block = BasicBlock()
+                for_main_block.add_edge_to(for_body_block, ast.Expr(stmt.iter))
+                self.stmts_helper(stmt.body, for_body_block).add_edge_to(for_main_block)
+
+                if self._ctx_break:
+                    for_break_block = self._ctx_break.pop(0)
+                    for_break_block.remove_edge(None)
+                    for_break_block.add_edge_to(for_join_block)
+                if self._ctx_continue:
+                    for_continue_block = self._ctx_continue.pop(0)
+                    for_continue_block.remove_edge(None)
+                    for_continue_block.add_edge_to(for_main_block)
+                if stmt.orelse:
+                    for_else_block = BasicBlock()
+                    for_main_block.add_edge_to(for_else_block, FALSE_STMT)
+                    self.stmts_helper(stmt.orelse, for_else_block).add_edge_to(
+                        for_join_block
+                    )
+                else:
+                    for_main_block.add_edge_to(for_join_block, FALSE_STMT)
+
+                return for_join_block
             case _:
                 print(stmt)
                 raise NotImplementedError
