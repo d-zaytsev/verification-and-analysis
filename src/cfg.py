@@ -53,16 +53,24 @@ class BasicBlock:
 
     def add_edge_to(self, block: "BasicBlock", const: ast.stmt | None = None) -> None:
         if const in self._edges:
-            raise ValueError(
-                f"Edge with const {const!r} already exist in {self!s}{self._edges!r}"
-            )
+            raise ValueError(f"Edge with const {const!r} already exist in {self!s}")
         self._edges[const] = block
 
     def remove_edge(self, const: ast.stmt | None) -> None:
-        del self._edges[const]
+        if const in self._edges:
+            del self._edges[const]
+
+    @property
+    def name(self) -> str:
+        return f"B{id(self):x}"
 
     def __str__(self) -> str:
-        return "BasicBlock(" + ";".join(ast.dump(s) for s in self._stmts) + ")"
+        stmts = "; ".join(ast.unparse(s) for s in self._stmts)
+        edges = ", ".join(
+            f"{'always' if cond is None else ast.unparse(cond)} -> {target.name}"
+            for cond, target in self._edges.items()
+        )
+        return f"{self.name}([{stmts}], edges={{{edges}}})"
 
 
 class CFG:
@@ -148,9 +156,13 @@ class CFGBuilder:
 
         cur = _cur
         for stmt in stmts:
-            cur = self.stmt_helper(stmt, cur)
+            new_block = self.stmt_helper(stmt, cur)
+            # Check if the next stmt was in the same block of code
+            inside_single_block = new_block is cur
+            cur = new_block
 
-            if self._ctx_break:
+            if inside_single_block and self._ctx_break:
+                cur = new_block
                 break
 
         return cur  # last processed stmt
@@ -195,9 +207,10 @@ class CFGBuilder:
 
                 if self._ctx_break:
                     break_block = self._ctx_break.pop(0)
-
-                    if break_block is while_body_block:
-                        while_body_block.remove_edge(None)
+                    break_block_child = break_block.edges[None]
+                    break_block.remove_edge(None)
+                    print(while_cond_block)
+                    print("break_block_child", break_block_child)
                     break_block.add_edge_to(while_join_block)
 
                 if stmt.orelse:
