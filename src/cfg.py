@@ -2,6 +2,8 @@ import ast
 from collections import deque
 from types import EllipsisType
 
+import pygraphviz as pgv
+
 
 class BasicBlock:
     """A sequential block of code with no branches.
@@ -89,6 +91,10 @@ class CFG:
 
     def _clean(self) -> None:
         visited: set[BasicBlock] = set()
+        # Skip empty root
+        while self._root.is_empty_block and None in self._root.edges:
+            self._root = self._root.edges[None]
+
         stack: list[BasicBlock] = [self._root]
 
         while stack:
@@ -132,6 +138,43 @@ class CFG:
                 label = "always" if cond is None else ast.unparse(cond)
                 lines.append(f"    → B{ids[id(target)]} [{label}]")
         return "\n".join(lines)
+
+    def to_dot(self) -> pgv.AGraph:
+        G = pgv.AGraph(strict=False, directed=True)
+        ppnames: dict[BasicBlock, str] = {}
+        order: list[BasicBlock] = []
+        queue = deque([self._root])
+
+        while queue:
+            block = queue.popleft()
+            if block in ppnames:
+                continue
+
+            node_name = f"B{len(order)}"
+            ppnames[block] = node_name
+            order.append(block)
+            queue.extend(block.edges.values())
+
+        for block in order:
+            node_label = "\n".join(
+                ast.unparse(stmt).replace("\\", "\\\\") for stmt in block.stmts
+            )
+            is_condition = any(cond is not None for cond in block.edges)
+            G.add_node(
+                ppnames[block],
+                label=node_label,
+                peripheries=2 if block.is_end_block else 1,
+                shape="diamond" if is_condition else "box",
+                style="filled" if is_condition else "",
+                fillcolor="lightyellow" if is_condition else "",
+            )
+
+            for cond, target in block.edges.items():
+                edge_label = (
+                    "" if cond is None else ast.unparse(cond).replace("\\", "\\\\")
+                )
+                G.add_edge(ppnames[block], ppnames[target], label=edge_label)
+        return str(G)
 
 
 def _const(value: str | bytes | bool | complex | None | EllipsisType) -> ast.stmt:
