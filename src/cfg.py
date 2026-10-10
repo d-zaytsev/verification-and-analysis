@@ -1,6 +1,9 @@
 import ast
+import sys
 from collections import deque
 from types import EllipsisType
+
+sys.setrecursionlimit(100_000_000)
 
 import pygraphviz as pgv
 
@@ -335,7 +338,10 @@ class CFGBuilder:
                     )
                     match_main_block.add_edge_to(match_case_body_block, case_label)
 
-                is_exhaustive = any(case.guard is None and _is_irrefutable(case.pattern) for case in stmt.cases)
+                is_exhaustive = any(
+                    case.guard is None and _is_irrefutable(case.pattern)
+                    for case in stmt.cases
+                )
                 if not is_exhaustive:
                     default_label = ast.copy_location(
                         ast.match_case(ast.MatchAs(), None, []), stmt
