@@ -231,8 +231,6 @@ class CFGBuilder:
         match stmt:
             case ast.Pass():
                 return _cur
-            case ast.Assign() | ast.AugAssign() | ast.Expr():
-                return _cur.append_stmt(stmt)
             case ast.If():
                 if_cond_block = BasicBlock(ast.Expr(stmt.test))
                 _cur.add_edge_to(if_cond_block)
@@ -265,11 +263,11 @@ class CFGBuilder:
                 )
 
                 while len(self._ctx_break) > cur_ctx_break:
-                    while_break_block = self._ctx_break.pop(0)
+                    while_break_block = self._ctx_break.pop(-1)
                     while_break_block.remove_edge(None)
                     while_break_block.add_edge_to(while_join_block)
                 while len(self._ctx_continue) > cur_ctx_continue:
-                    while_continue_block = self._ctx_continue.pop(0)
+                    while_continue_block = self._ctx_continue.pop(-1)
                     while_continue_block.remove_edge(None)
                     while_continue_block.add_edge_to(while_cond_block)
 
@@ -303,11 +301,11 @@ class CFGBuilder:
                 self.stmts_helper(stmt.body, for_body_block).add_edge_to(for_main_block)
 
                 while len(self._ctx_break) > cur_ctx_break:
-                    for_break_block = self._ctx_break.pop(0)
+                    for_break_block = self._ctx_break.pop(-1)
                     for_break_block.remove_edge(None)
                     for_break_block.add_edge_to(for_join_block)
                 while len(self._ctx_continue) > cur_ctx_continue:
-                    for_continue_block = self._ctx_continue.pop(0)
+                    for_continue_block = self._ctx_continue.pop(-1)
                     for_continue_block.remove_edge(None)
                     for_continue_block.add_edge_to(for_main_block)
                 if stmt.orelse:
@@ -346,6 +344,5 @@ class CFGBuilder:
 
                 return match_join_block
             case _:
-                print(stmt)
-                raise NotImplementedError
+                return _cur.append_stmt(stmt)
         raise ValueError("???")
