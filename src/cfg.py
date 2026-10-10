@@ -105,7 +105,9 @@ class CFG:
 
             for key, child_block in block.edges.items():
                 target: BasicBlock | None = child_block
-                while target is not None and target.is_empty_block:
+                while target is not None and (
+                    target.is_empty_block and not target.is_end_block
+                ):
                     target = target.edges.get(None)
                 block.remove_edge(key)
                 if target is not None:
@@ -201,18 +203,11 @@ class CFGBuilder:
         stmts: list[ast.stmt],
         _cur: BasicBlock,
     ) -> BasicBlock:
-        if len(stmts) == 0:
-            raise ValueError(stmts)
-
         cur = _cur
         for stmt in stmts:
-            new_block = self.stmt_helper(stmt, cur)
-            # Check if the next stmt was in the same block of code
-            inside_single_block = new_block is cur
-            cur = new_block
+            cur = self.stmt_helper(stmt, cur)
 
-            if inside_single_block and (self._ctx_break or self._ctx_continue):
-                cur = new_block
+            if cur in self._ctx_break or cur in self._ctx_continue:
                 break
 
         return cur  # last processed stmt
@@ -222,7 +217,12 @@ class CFGBuilder:
         stmt: ast.stmt,
         _cur: BasicBlock,
     ) -> BasicBlock:
+        cur_ctx_break = len(self._ctx_break)
+        cur_ctx_continue = len(self._ctx_continue)
+        
         match stmt:
+            case ast.Pass():
+                return _cur
             case ast.Assign() | ast.AugAssign() | ast.Expr():
                 return _cur.append_stmt(stmt)
             case ast.If():
@@ -256,11 +256,11 @@ class CFGBuilder:
                     while_cond_block
                 )
 
-                if self._ctx_break:
+                while len(self._ctx_break) > cur_ctx_break:
                     while_break_block = self._ctx_break.pop(0)
                     while_break_block.remove_edge(None)
                     while_break_block.add_edge_to(while_join_block)
-                if self._ctx_continue:
+                while len(self._ctx_continue) > cur_ctx_continue:
                     while_continue_block = self._ctx_continue.pop(0)
                     while_continue_block.remove_edge(None)
                     while_continue_block.add_edge_to(while_cond_block)
@@ -294,11 +294,11 @@ class CFGBuilder:
                 for_main_block.add_edge_to(for_body_block, ast.Expr(stmt.iter))
                 self.stmts_helper(stmt.body, for_body_block).add_edge_to(for_main_block)
 
-                if self._ctx_break:
+                while len(self._ctx_break) > cur_ctx_break:
                     for_break_block = self._ctx_break.pop(0)
                     for_break_block.remove_edge(None)
                     for_break_block.add_edge_to(for_join_block)
-                if self._ctx_continue:
+                while len(self._ctx_continue) > cur_ctx_continue:
                     for_continue_block = self._ctx_continue.pop(0)
                     for_continue_block.remove_edge(None)
                     for_continue_block.add_edge_to(for_main_block)
@@ -329,12 +329,19 @@ class CFGBuilder:
                     )
                     match_main_block.add_edge_to(match_case_body_block, case_label)
 
-                last_case = stmt.cases[-1]
-                is_exhaustive = (
-                    isinstance(last_case.pattern, ast.MatchAs)
-                    and last_case.pattern.pattern is None
-                    and last_case.guard is None
-                )
+                is_exhaustive = False
+                for case in stmt.cases:
+                    if (
+                        isinstance(case.pattern, ast.MatchAs)
+                        and case.guard is None
+                    ):
+                        is_exhaustive = True
+
+                    if not is_exhaustive and isinstance(case.pattern, ast.MatchOr):
+                        is_exhaustive = any(
+                            isinstance(p, ast.MatchAs) for p in case.pattern.patterns
+                        )
+
                 if not is_exhaustive:
                     default_label = ast.copy_location(
                         ast.match_case(ast.MatchAs(), None, []), stmt
