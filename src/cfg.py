@@ -186,6 +186,14 @@ def _const(value: str | bytes | bool | complex | None | EllipsisType) -> ast.stm
     return ast.Expr(ast.Constant(value))
 
 
+def _is_irrefutable(pattern: ast.pattern) -> bool:
+    if isinstance(pattern, ast.MatchAs):
+        return pattern.pattern is None or _is_irrefutable(pattern.pattern)
+    if isinstance(pattern, ast.MatchOr):
+        return any(_is_irrefutable(p) for p in pattern.patterns)
+    return False
+
+
 TRUE_STMT = _const(True)
 FALSE_STMT = _const(False)
 
@@ -219,7 +227,7 @@ class CFGBuilder:
     ) -> BasicBlock:
         cur_ctx_break = len(self._ctx_break)
         cur_ctx_continue = len(self._ctx_continue)
-        
+
         match stmt:
             case ast.Pass():
                 return _cur
@@ -329,19 +337,7 @@ class CFGBuilder:
                     )
                     match_main_block.add_edge_to(match_case_body_block, case_label)
 
-                is_exhaustive = False
-                for case in stmt.cases:
-                    if (
-                        isinstance(case.pattern, ast.MatchAs)
-                        and case.guard is None
-                    ):
-                        is_exhaustive = True
-
-                    if not is_exhaustive and isinstance(case.pattern, ast.MatchOr):
-                        is_exhaustive = any(
-                            isinstance(p, ast.MatchAs) for p in case.pattern.patterns
-                        )
-
+                is_exhaustive = any(case.guard is None and _is_irrefutable(case.pattern) for case in stmt.cases)
                 if not is_exhaustive:
                     default_label = ast.copy_location(
                         ast.match_case(ast.MatchAs(), None, []), stmt
