@@ -156,8 +156,11 @@ class CFG:
             queue.extend(block.edges.values())
 
         for block in order:
-            node_label = "\n".join(
-                ast.unparse(stmt).replace("\\", "\\\\") for stmt in block.stmts
+            # "\l" ends a left-justified line in Graphviz labels
+            node_label = "".join(
+                line + "\\l"
+                for stmt in block.stmts
+                for line in ast.unparse(stmt).replace("\\", "\\\\").splitlines()
             )
             is_condition = any(cond is not None for cond in block.edges)
             G.add_node(
@@ -174,7 +177,7 @@ class CFG:
                     "" if cond is None else ast.unparse(cond).replace("\\", "\\\\")
                 )
                 G.add_edge(ppnames[block], ppnames[target], label=edge_label)
-        return str(G)
+        return G
 
 
 def _const(value: str | bytes | bool | complex | None | EllipsisType) -> ast.stmt:
@@ -242,7 +245,8 @@ class CFGBuilder:
 
                 return if_join_block
             case ast.While():  # While(expr test, stmt* body, stmt* orelse)
-                while_cond_block = BasicBlock(ast.Expr(stmt.test))
+                while_cond = ast.copy_location(ast.While(stmt.test, [], []), stmt)
+                while_cond_block = BasicBlock(while_cond)
                 _cur.add_edge_to(while_cond_block)
                 while_join_block = BasicBlock()
 
