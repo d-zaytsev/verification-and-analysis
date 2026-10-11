@@ -1,4 +1,5 @@
 import ast
+import copy
 import sys
 from collections import deque
 from types import EllipsisType
@@ -34,14 +35,6 @@ class BasicBlock:
         return self._edges.copy()
 
     @property
-    def is_decision_block(self) -> bool:
-        return (
-            len(self._stmts) == 1
-            and isinstance(self._stmts[0], ast.Expr)
-            and any(isinstance(k, ast.stmt) for k in self.edges)
-        )
-
-    @property
     def is_end_block(self) -> bool:
         return len(self._edges) == 0
 
@@ -53,9 +46,6 @@ class BasicBlock:
         self._stmts.append(stmt)
         return self
 
-    def extend_stmts(self, block: "BasicBlock") -> None:
-        self._stmts.extend(block.stmts)
-
     def add_edge_to(
         self, block: "BasicBlock", const: ast.match_case | ast.stmt | None = None
     ) -> None:
@@ -66,6 +56,9 @@ class BasicBlock:
     def remove_edge(self, const: ast.match_case | ast.stmt | None) -> None:
         if const in self._edges:
             del self._edges[const]
+
+    def has_edge_to(self, block: "BasicBlock") -> bool:
+        return block in self._edges.values()
 
     @property
     def name(self) -> str:
@@ -83,6 +76,12 @@ class BasicBlock:
 class CFG:
     def __init__(self, root: BasicBlock) -> None:
         self._root = root
+
+    @property
+    def root(self) -> BasicBlock:
+        return copy.deepcopy(
+            self._root, {id(TRUE_STMT): TRUE_STMT, id(FALSE_STMT): FALSE_STMT}
+        )
 
     @classmethod
     def from_ast(cls, body: list[ast.stmt]) -> "CFG":
