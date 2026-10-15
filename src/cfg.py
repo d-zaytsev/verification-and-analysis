@@ -8,6 +8,8 @@ sys.setrecursionlimit(100_000_000)
 
 import pygraphviz as pgv
 
+LABEL = ast.match_case | ast.stmt | None
+
 
 class BasicBlock:
     """A sequential block of code with no branches.
@@ -16,7 +18,7 @@ class BasicBlock:
 
     _stmts: list[ast.stmt]
     """List of block sequential statements."""
-    _edges: dict[ast.match_case | ast.stmt | None, "BasicBlock"]
+    _edges: dict[LABEL, "BasicBlock"]
     """Dict of edges that transfer control from one block to another
        ("the program may take that path")."""
 
@@ -31,7 +33,7 @@ class BasicBlock:
         return self._stmts.copy()
 
     @property
-    def edges(self) -> dict[ast.match_case | ast.stmt | None, "BasicBlock"]:
+    def edges(self) -> dict[LABEL, "BasicBlock"]:
         return self._edges.copy()
 
     @property
@@ -46,19 +48,20 @@ class BasicBlock:
         self._stmts.append(stmt)
         return self
 
-    def add_edge_to(
-        self, block: "BasicBlock", const: ast.match_case | ast.stmt | None = None
-    ) -> None:
+    def add_edge_to(self, block: "BasicBlock", const: LABEL = None) -> None:
         if const in self._edges:
             raise ValueError(f"Edge with const {const!r} already exist in {self!s}")
         self._edges[const] = block
 
-    def remove_edge(self, const: ast.match_case | ast.stmt | None) -> None:
+    def remove_edge(self, const: LABEL) -> None:
         if const in self._edges:
             del self._edges[const]
 
     def has_edge_to(self, block: "BasicBlock") -> bool:
         return block in self._edges.values()
+
+    def get_label_to(self, block: "BasicBlock") -> LABEL:
+        return next(k for k, v in self._edges.items() if v == block)
 
     @property
     def name(self) -> str:

@@ -3,6 +3,7 @@ import ast
 import time
 from pathlib import Path
 
+from cdg import CDG
 from cfg import CFG
 
 
@@ -14,6 +15,8 @@ def _analyze(file: Path, format: str) -> None:
         print(ast.dump(parsed_ast, indent=1))
     elif format == "cfg":
         print(CFG.from_ast(parsed_ast.body))
+    elif format == "cdg":
+        print(CDG.from_ast(parsed_ast.body))
     elif format == "cfg-dot":
         G = CFG.from_ast(parsed_ast.body).to_dot()
         G.layout(prog="dot")

@@ -1,4 +1,5 @@
 import ast
+from collections import deque
 import itertools
 
 from cfg import CFG, FALSE_STMT, TRUE_STMT, BasicBlock
@@ -141,12 +142,12 @@ class PDTree:
 class CDG:
     def __init__(
         self,
-        root: BasicBlock,
+        start_node: BasicBlock,
         children: dict[
-            BasicBlock, tuple[ast.match_case | ast.stmt | None, set[BasicBlock]]
+            BasicBlock, tuple[ast.match_case | ast.stmt | None, list[BasicBlock]]
         ],
     ) -> None:
-        self._root = root
+        self._start_node = start_node
         self._children = children
 
     @classmethod
@@ -159,31 +160,59 @@ class CDG:
         s = {
             (a, b)
             for a, b in itertools.product(nodes, nodes)
+            # (a,b) in ACFG such that B is not ancestor of A in PDT
             if a.has_edge_to(b) and a not in pdt.get_children(b)
         }
 
+        # TODO надо придумать что-то получше...
         children: dict[
-            BasicBlock, tuple[ast.match_case | ast.stmt | None, set[BasicBlock]]
+            BasicBlock, tuple[ast.match_case | ast.stmt | None, list[BasicBlock]]
         ] = {}
 
         for a, b in s:
+            # L is a postdominator of A
             l = pdt.find_lca(a, b)
 
-            blocks: set[BasicBlock] = set()
+            visited: list[BasicBlock] = []
 
+            # Traverse backwards from B to L
             for n in pdt.find_path(b, l):
                 if n is not l:
-                    blocks.add(n)
+                    # Nodes that postdominate B and don't postdominate A
+                    visited.append(n)
 
             if l is a:
-                blocks.add(l)
+                # Add branching node itself
+                visited.append(l)
 
-            label = None
-            for k, a_child in a.edges.items():
-                if a_child is b:
-                    label = k
-                    break
-
-            children[a] = (label, blocks)
+            print(ast.unparse(a.get_label_to(b)), visited)
+            children[a] = (a.get_label_to(b), visited)
 
         return cls(acfg.start_node, children)
+
+    def __str__(self) -> str:
+        ids: dict[str, int] = {}
+        order: list[BasicBlock] = []
+        queue = deque([self._start_node])
+        
+        while queue:
+            block = queue.popleft()
+            if block.name in ids:
+                continue
+            ids[block.name] = len(order)
+            order.append(block)
+            if block in self._children:
+                queue.extend(self._children[block][1])
+                
+        lines: list[str] = []
+        for block in order:
+            lines.append(f"B{ids[block.name]}:")
+            for stmt in block.stmts:
+                lines.extend("    " + line for line in ast.unparse(stmt).splitlines())
+                
+            if block in self._children:
+                cond = self._children[block][0]
+                for target in self._children[block][1]:  
+                        label = "always" if cond is None else ast.unparse(cond)
+                        lines.append(f"    → B{ids[target.name]} [{label}]")
+        return "\n".join(lines)
