@@ -1,0 +1,14 @@
+B0:
+    → B1 [True]
+    → B2 [True]
+    → B3 [True]
+B1:
+    total = 0
+B2:
+    for i in list(range(10)):
+    → B4 [list(range(10))]
+    → B2 [list(range(10))]
+B3:
+    print(total)
+B4:
+    total += i

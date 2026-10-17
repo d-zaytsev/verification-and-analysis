@@ -1,0 +1,29 @@
+B0:
+    → B1 [True]
+    → B2 [True]
+    → B3 [True]
+    → B4 [True]
+    → B5 [True]
+B1:
+    a = 1
+    b = 2
+B2:
+    a % 2 == 0
+    → B6 [True]
+    → B7 [False]
+B3:
+    print('Hello world!')
+B4:
+    b % 2 == 0
+    → B8 [True]
+    → B9 [False]
+B5:
+    print('End of program!')
+B6:
+    print('a четное')
+B7:
+    print('a нечетное')
+B8:
+    print('b четное')
+B9:
+    print('b нечетное')

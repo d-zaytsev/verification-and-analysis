@@ -1,0 +1,30 @@
+B0:
+    → B1 [True]
+    → B2 [True]
+    → B3 [True]
+B1:
+    i = 0
+B2:
+    while i < 5:
+    → B4 [True]
+    → B5 [True]
+    → B2 [True]
+B3:
+    print('end')
+B4:
+    i += 1
+B5:
+    i % 2 == 0
+    → B6 [True]
+    → B7 [False]
+    → B8 [False]
+B6:
+    continue
+B7:
+    for j in range(i):
+    → B9 [range(i)]
+    → B7 [range(i)]
+B8:
+    print(i)
+B9:
+    print(i, j)

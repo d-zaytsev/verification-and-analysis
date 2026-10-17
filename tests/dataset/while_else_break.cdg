@@ -1,0 +1,17 @@
+B0:
+    → B1 [True]
+    → B2 [True]
+    → B3 [True]
+B1:
+    do = True
+B2:
+    while do == True:
+    → B4 [True]
+    → B5 [False]
+B3:
+    print('вышли из цикла')
+B4:
+    print('делаем итерацию')
+    break
+B5:
+    print('попали в блок else')

@@ -1,0 +1,27 @@
+B0:
+    → B1 [True]
+    → B2 [True]
+B1:
+    for i in range(10):
+    → B3 [range(10)]
+    → B4 [False]
+B2:
+    print('end')
+B3:
+    i % 2 == 0
+    → B5 [True]
+    → B1 [True]
+    → B6 [False]
+B4:
+    print('no break')
+B5:
+    continue
+B6:
+    i > 7
+    → B7 [True]
+    → B8 [False]
+    → B1 [False]
+B7:
+    break
+B8:
+    print(i)

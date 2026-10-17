@@ -1,0 +1,19 @@
+B0:
+    → B1 [True]
+    → B2 [True]
+    → B3 [True]
+B1:
+    command = 'stop'
+B2:
+    match command:
+    → B4 [case 'start':]
+    → B5 [case 'stop':]
+    → B6 [case _:]
+B3:
+    print('end')
+B4:
+    print('starting')
+B5:
+    print('stopping')
+B6:
+    print('unknown')

@@ -1,0 +1,10 @@
+B0:
+    → B1 [True]
+    → B2 [True]
+B1:
+    for i in range(3):
+    → B3 [range(3)]
+    → B1 [range(3)]
+B2:
+B3:
+    print(i)

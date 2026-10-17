@@ -1,0 +1,13 @@
+B0:
+    → B1 [True]
+    → B2 [True]
+    → B3 [True]
+B1:
+    i = 0
+B2:
+    while i < 3:
+    → B4 [True]
+    → B2 [True]
+B3:
+B4:
+    i += 1

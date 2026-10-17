@@ -1,0 +1,26 @@
+B0:
+    → B1 [True]
+    → B2 [True]
+    → B3 [True]
+    → B4 [True]
+B1:
+    i = 0
+B2:
+    while i < 10:
+    → B5 [True]
+    → B6 [True]
+    → B2 [True]
+B3:
+    print('done')
+B4:
+    print(i)
+B5:
+    i % 2 == 0
+    → B7 [True]
+    → B8 [False]
+B6:
+    i += 1
+B7:
+    print('even')
+B8:
+    print('odd')

@@ -1,0 +1,22 @@
+B0:
+    → B1 [True]
+    → B2 [True]
+    → B3 [True]
+B1:
+    a = 1
+    b = 1
+B2:
+    a == 1
+    → B4 [True]
+    → B5 [False]
+B3:
+B4:
+    b == 1
+    → B6 [True]
+    → B7 [False]
+B5:
+    print('FALSE')
+B6:
+    print('TRUE')
+B7:
+    print('FALSE')

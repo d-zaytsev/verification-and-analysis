@@ -1,0 +1,14 @@
+B0:
+    → B1 [True]
+    → B2 [True]
+    → B3 [True]
+B1:
+    x = 7
+    flag = False
+B2:
+    match x:
+    → B4 [case 1 | _ if flag:]
+B3:
+    print('end')
+B4:
+    print('matched')

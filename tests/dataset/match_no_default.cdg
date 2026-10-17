@@ -1,0 +1,32 @@
+B0:
+    → B1 [True]
+    → B2 [True]
+    → B3 [True]
+B1:
+    code = 404
+    status = '-'
+B2:
+    match code:
+    → B4 [case 200:]
+    → B5 [case 201:]
+    → B6 [case 404 | 410:]
+    → B7 [case 301:]
+    → B8 [case 400:]
+    → B9 [case 401:]
+    → B10 [case 403:]
+B3:
+    print(status)
+B4:
+    status = 'ok'
+B5:
+    status = 'created'
+B6:
+    status = 'not found'
+B7:
+    status = 'Moved Permanently'
+B8:
+    status = 'Bad Request'
+B9:
+    status = 'Unauthorized'
+B10:
+    status = 'Forbidden'

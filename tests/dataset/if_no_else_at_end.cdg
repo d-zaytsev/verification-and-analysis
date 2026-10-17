@@ -1,0 +1,12 @@
+B0:
+    → B1 [True]
+    → B2 [True]
+    → B3 [True]
+B1:
+    x = 5
+B2:
+    x > 0
+    → B4 [True]
+B3:
+B4:
+    print('positive')

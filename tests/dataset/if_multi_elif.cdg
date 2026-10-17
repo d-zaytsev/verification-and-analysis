@@ -1,0 +1,28 @@
+B0:
+    → B1 [True]
+    → B2 [True]
+    → B3 [True]
+B1:
+    grade = 75
+B2:
+    grade >= 90
+    → B4 [True]
+    → B5 [False]
+B3:
+    print(mark)
+B4:
+    mark = 'A'
+B5:
+    grade >= 80
+    → B6 [True]
+    → B7 [False]
+B6:
+    mark = 'B'
+B7:
+    grade >= 70
+    → B8 [True]
+    → B9 [False]
+B8:
+    mark = 'C'
+B9:
+    mark = 'F'

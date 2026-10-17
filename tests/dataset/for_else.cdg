@@ -1,0 +1,14 @@
+B0:
+    → B1 [True]
+    → B2 [True]
+    → B3 [True]
+B1:
+    for i in range(5):
+    → B4 [range(5)]
+    → B1 [range(5)]
+B2:
+    print('loop finished')
+B3:
+    print('end')
+B4:
+    print(i)

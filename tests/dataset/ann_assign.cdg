@@ -1,0 +1,17 @@
+B0:
+    → B1 [True]
+    → B2 [True]
+    → B3 [True]
+B1:
+    x: int = 0
+    y: list[int]
+B2:
+    x
+    → B4 [True]
+    → B5 [False]
+B3:
+    print(y)
+B4:
+    y = [x]
+B5:
+    y: list[int] = []

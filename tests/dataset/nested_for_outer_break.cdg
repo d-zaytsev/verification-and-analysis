@@ -1,0 +1,21 @@
+B0:
+    → B1 [True]
+    → B2 [True]
+B1:
+    for i in range(5):
+    → B3 [range(5)]
+B2:
+    print('end')
+B3:
+    i == 3
+    → B4 [True]
+    → B5 [False]
+    → B1 [False]
+B4:
+    break
+B5:
+    for j in range(i):
+    → B6 [range(i)]
+    → B5 [range(i)]
+B6:
+    print(i, j)

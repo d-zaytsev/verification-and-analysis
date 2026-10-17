@@ -1,0 +1,23 @@
+B0:
+    → B1 [True]
+    → B2 [True]
+    → B3 [True]
+B1:
+    point = (1, 2)
+    label = '-'
+B2:
+    match point:
+    → B4 [case [0, 0]:]
+    → B5 [case [x, y] if x == y:]
+    → B6 [case [x, _] as p if x > 0:]
+    → B7 [case _ if point:]
+B3:
+    print(label)
+B4:
+    label = 'origin'
+B5:
+    label = 'diagonal'
+B6:
+    label = 'right'
+B7:
+    label = 'other'

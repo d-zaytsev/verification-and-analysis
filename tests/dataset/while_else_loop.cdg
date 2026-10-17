@@ -1,0 +1,17 @@
+B0:
+    → B1 [True]
+    → B2 [True]
+    → B3 [True]
+    → B4 [True]
+B1:
+    i = 1
+B2:
+    while i < 100:
+    → B5 [True]
+    → B2 [True]
+B3:
+    print(i)
+B4:
+    print('Hello world!')
+B5:
+    i += 1

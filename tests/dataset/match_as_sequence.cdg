@@ -1,0 +1,13 @@
+B0:
+    → B1 [True]
+    → B2 [True]
+    → B3 [True]
+B1:
+    x = [1, 2]
+B2:
+    match x:
+    → B4 [case [a] as y:]
+B3:
+    print('end')
+B4:
+    print(y)

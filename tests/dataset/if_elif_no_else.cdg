@@ -1,0 +1,19 @@
+B0:
+    → B1 [True]
+    → B2 [True]
+    → B3 [True]
+B1:
+    x = 5
+B2:
+    x > 10
+    → B4 [True]
+    → B5 [False]
+B3:
+    print(y)
+B4:
+    y = 1
+B5:
+    x > 0
+    → B6 [True]
+B6:
+    y = 2

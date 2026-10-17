@@ -1,0 +1,27 @@
+B0:
+    → B1 [True]
+    → B2 [True]
+    → B3 [True]
+B1:
+    for i in range(10):
+    → B4 [range(10)]
+B2:
+    for j in range(3):
+    → B5 [range(3)]
+    → B2 [range(3)]
+B3:
+    print('end')
+B4:
+    i == 3
+    → B6 [True]
+    → B7 [False]
+B5:
+    print(j)
+B6:
+    break
+B7:
+    i == 5
+    → B8 [True]
+    → B1 [False]
+B8:
+    break

@@ -1,0 +1,21 @@
+B0:
+    → B1 [True]
+    → B2 [True]
+    → B3 [True]
+B1:
+    a = 10
+B2:
+    a > 100
+    → B4 [True]
+    → B5 [False]
+B3:
+B4:
+    c = 3
+B5:
+    a > 10
+    → B6 [True]
+    → B7 [False]
+B6:
+    c = 2
+B7:
+    c = 1

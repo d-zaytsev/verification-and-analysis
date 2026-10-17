@@ -1,5 +1,4 @@
 import ast
-import itertools
 from collections import deque
 from typing import cast
 
@@ -9,18 +8,18 @@ from cfg import CFG, FALSE_STMT, TRUE_STMT, BasicBlock
 class ACFG:
     exit_node: BasicBlock
     start_node: BasicBlock
-    nodes: set[BasicBlock]
+    nodes: list[BasicBlock]
 
     def __init__(self, cfg: CFG) -> None:
         self.start_node = cfg.root
-        self.nodes = set()
+        self.nodes = []
 
         self._prepare()
 
     def _prepare(self) -> None:
         # Add single exit node
         q: list[BasicBlock] = [self.start_node]
-        end_nodes: set[BasicBlock] = set()
+        end_nodes: list[BasicBlock] = []
 
         while q:
             node = q.pop(-1)
@@ -28,10 +27,10 @@ class ACFG:
             if node in self.nodes:
                 continue
 
-            self.nodes.add(node)
+            self.nodes.append(node)
 
             if node.is_end_block:
-                end_nodes.add(node)
+                end_nodes.append(node)
                 continue
             q.extend(list(node.edges.values()))
 
@@ -50,8 +49,8 @@ class ACFG:
 
         # Change root
         self.start_node = start_node
-        self.nodes.add(self.exit_node)
-        self.nodes.add(start_node)
+        self.nodes.append(self.exit_node)
+        self.nodes.append(start_node)
 
 
 class PDTree:
@@ -82,13 +81,13 @@ class PDTree:
 
         a_cur, b_cur = a, b
         while (a_cur is not self._start_node) or (b_cur is not self._start_node):
-            a_visited.add(a_cur)
-            b_visited.add(b_cur)
-
             if self._parent.get(a_cur) is not None:
                 a_cur = cast(BasicBlock, self._parent[a_cur])
             if self._parent.get(b_cur) is not None:
                 b_cur = cast(BasicBlock, self._parent[b_cur])
+
+            a_visited.add(a_cur)
+            b_visited.add(b_cur)
 
             if a_cur in b_visited:
                 return a_cur
@@ -187,7 +186,7 @@ class CDG:
         self,
         start_node: BasicBlock,
         children: dict[
-            BasicBlock, tuple[ast.match_case | ast.stmt | None, list[BasicBlock]]
+            BasicBlock, dict[ast.match_case | ast.stmt | None, list[BasicBlock]]
         ],
     ) -> None:
         self._start_node = start_node
@@ -199,16 +198,16 @@ class CDG:
         acfg = ACFG(cfg)
         pdt = PDTree(acfg)
 
-        nodes = acfg.nodes
-        s = {
+        s = [
             (a, b)
-            for a, b in itertools.product(nodes, nodes)
+            for a in acfg.nodes
+            for b in a.edges.values()
             # (a,b) in ACFG such that B is not ancestor of A in PDT
-            if a.has_edge_to(b) and a not in pdt.get_children(b)
-        }
+            if a not in pdt.get_children(b)
+        ]
 
         children: dict[
-            BasicBlock, tuple[ast.match_case | ast.stmt | None, list[BasicBlock]]
+            BasicBlock, dict[ast.match_case | ast.stmt | None, list[BasicBlock]]
         ] = {}
 
         for a, b in s:
@@ -224,7 +223,13 @@ class CDG:
                 # Add branching node itself
                 visited.append(l)
 
-            children[a] = (a.get_label_to(b), visited)
+            label = a.get_label_to(b)
+            if a in children:
+                if label not in children[a]:
+                    children[a][label] = []
+                children[a][label].extend(visited)
+            else:
+                children[a] = {label: visited}
 
         return cls(acfg.start_node, children)
 
@@ -240,7 +245,8 @@ class CDG:
             ids[block.name] = len(order)
             order.append(block)
             if block in self._children:
-                queue.extend(self._children[block][1])
+                for child_blocks in self._children[block].values():
+                    queue.extend(child_blocks)
 
         lines: list[str] = []
         for block in order:
@@ -249,8 +255,8 @@ class CDG:
                 lines.extend("    " + line for line in ast.unparse(stmt).splitlines())
 
             if block in self._children:
-                cond = self._children[block][0]
-                for target in self._children[block][1]:
-                    label = "always" if cond is None else ast.unparse(cond)
-                    lines.append(f"    → B{ids[target.name]} [{label}]")
+                for cond, targets in self._children[block].items():
+                    for target in targets:
+                        label = "always" if cond is None else ast.unparse(cond)
+                        lines.append(f"    → B{ids[target.name]} [{label}]")
         return "\n".join(lines)

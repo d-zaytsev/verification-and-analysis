@@ -1,0 +1,23 @@
+B0:
+    → B1 [True]
+    → B2 [True]
+    → B3 [True]
+B1:
+    i = 0
+B2:
+    while i < 10:
+    → B4 [True]
+    → B5 [False]
+B3:
+    print(i)
+B4:
+    i == 5
+    → B6 [True]
+    → B7 [False]
+    → B2 [False]
+B5:
+    print('no break')
+B6:
+    break
+B7:
+    i += 1
