@@ -2,6 +2,8 @@ import ast
 from collections import deque
 from typing import cast
 
+import pygraphviz as pgv
+
 from cfg import CFG, FALSE_STMT, TRUE_STMT, BasicBlock
 
 
@@ -260,3 +262,50 @@ class CDG:
                         label = "always" if cond is None else ast.unparse(cond)
                         lines.append(f"    → B{ids[target.name]} [{label}]")
         return "\n".join(lines)
+
+    def to_dot(self) -> pgv.AGraph:
+        G = pgv.AGraph(strict=False, directed=True)
+        ppnames: dict[BasicBlock, str] = {}
+        order: list[BasicBlock] = []
+        queue = deque([self._start_node])
+
+        while queue:
+            block = queue.popleft()
+            if block in ppnames:
+                continue
+
+            node_name = f"B{len(order)}"
+            ppnames[block] = node_name
+            order.append(block)
+            if block in self._children:
+                for child_blocks in self._children[block].values():
+                    queue.extend(child_blocks)
+
+        for block in order:
+            # "\l" ends a left-justified line in Graphviz labels
+            node_label = "".join(
+                line + "\\l"
+                for stmt in block.stmts
+                for line in ast.unparse(stmt).replace("\\", "\\\\").splitlines()
+            )
+            is_condition = any(cond is not None for cond in block.edges)
+            G.add_node(
+                ppnames[block],
+                label=node_label,
+                peripheries=2 if block.is_end_block else 1,
+                shape="diamond" if is_condition else "box",
+                style="filled" if is_condition else "",
+                fillcolor="lightyellow" if is_condition else "",
+            )
+
+            if block not in self._children:
+                continue
+            
+            for cond, targets in self._children[block].items():
+                edge_label = (
+                    "" if cond is None else ast.unparse(cond).replace("\\", "\\\\")
+                )
+                
+                for i, target in enumerate(targets):
+                    G.add_edge(ppnames[block], ppnames[target], label=f"({i})" + edge_label)
+        return G

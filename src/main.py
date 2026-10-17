@@ -22,6 +22,11 @@ def _analyze(file: Path, format: str) -> None:
         G.layout(prog="dot")
         G.draw("graph.png")
         print("Image updated!")
+    elif format == "cdg-dot":
+        G = CDG.from_ast(parsed_ast.body).to_dot()
+        G.layout(prog="dot")
+        G.draw("graph.png")
+        print("Image updated!")
     else:
         raise ValueError(format)
 
