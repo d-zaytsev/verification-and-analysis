@@ -1,6 +1,7 @@
-a = 100
+i = 0
+a = 1
 
-if a % 2 == 0:
-    print("Hi!")
-else:
-    print("Hello!")
+while i < 100:
+    i += 1
+
+print("end of program")

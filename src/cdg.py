@@ -1,6 +1,7 @@
 import ast
-from collections import deque
 import itertools
+from collections import deque
+from typing import cast
 
 from cfg import CFG, FALSE_STMT, TRUE_STMT, BasicBlock
 
@@ -36,13 +37,11 @@ class ACFG:
 
         if len(end_nodes) < 1:
             raise ValueError("Illegal CFG")
-        elif len(end_nodes) == 1:
-            self.exit_node = end_nodes.pop()
-        else:
-            # New single exit node
-            self.exit_node = BasicBlock()
-            for n in end_nodes:
-                n.add_edge_to(self.exit_node)
+
+        # New single exit node
+        self.exit_node = BasicBlock()
+        for n in end_nodes:
+            n.add_edge_to(self.exit_node)
 
         # Augment CFG
         start_node = BasicBlock()
@@ -75,28 +74,47 @@ class PDTree:
         return self._children[block].copy()
 
     def find_lca(self, a: BasicBlock, b: BasicBlock) -> BasicBlock:
-        a_ancestors = set(self._path_to_root(a))
-        for node in self._path_to_root(b):
-            if node in a_ancestors:
-                return node
+        if a is b:
+            return a
 
-        raise ValueError("Nodes are not in the same tree")
+        a_visited: set[BasicBlock] = {a}
+        b_visited: set[BasicBlock] = {b}
 
-    def find_path(self, a: BasicBlock, b: BasicBlock) -> list[BasicBlock]:
-        lca = self.find_lca(a, b)
-        a_path = self._path_to_root(a)
-        b_path = self._path_to_root(b)
+        a_cur, b_cur = a, b
+        while (a_cur is not self._start_node) or (b_cur is not self._start_node):
+            a_visited.add(a_cur)
+            b_visited.add(b_cur)
 
-        up = a_path[: a_path.index(lca) + 1]
-        down = b_path[: b_path.index(lca)]
-        return up + down[::-1]
+            if self._parent.get(a_cur) is not None:
+                a_cur = cast(BasicBlock, self._parent[a_cur])
+            if self._parent.get(b_cur) is not None:
+                b_cur = cast(BasicBlock, self._parent[b_cur])
 
-    def _path_to_root(self, node: BasicBlock) -> list[BasicBlock]:
-        path = [node]
-        while (parent := self._parent[node]) is not None:
+            if a_cur in b_visited:
+                return a_cur
+            if b_cur in a_visited:
+                return b_cur
+        raise ValueError
+
+    def traverse_backward(self, a: BasicBlock, b: BasicBlock) -> list[BasicBlock]:
+        if a is b:
+            return [a]
+
+        path = [a]
+        cur = a
+
+        while cur is not self._start_node:
+            parent = self._parent[cur]
+
+            if not parent:
+                break
+
+            if parent is b:
+                return path
+
             path.append(parent)
-            node = parent
-        return path
+            cur = parent
+        raise ValueError
 
     def _compute_post_dom(self) -> None:
         self._pds = {n: set(self._cfg.nodes) for n in self._cfg.nodes}
@@ -138,6 +156,31 @@ class PDTree:
                     self._children[m].append(n)
                     self._parent[n] = m
 
+    def __str__(self) -> str:
+        ids: dict[str, int] = {}
+        order: list[BasicBlock] = []
+        queue = deque([self._start_node])
+
+        while queue:
+            block = queue.popleft()
+            if block.name in ids:
+                continue
+            ids[block.name] = len(order)
+            order.append(block)
+            if block in self._children:
+                queue.extend(self._children[block])
+
+        lines: list[str] = []
+        for block in order:
+            lines.append(f"B{ids[block.name]}:")
+            for stmt in block.stmts:
+                lines.extend("    " + line for line in ast.unparse(stmt).splitlines())
+
+            if block in self._children:
+                for target in self._children[block]:
+                    lines.append(f"    → B{ids[target.name]}")
+        return "\n".join(lines)
+
 
 class CDG:
     def __init__(
@@ -164,7 +207,6 @@ class CDG:
             if a.has_edge_to(b) and a not in pdt.get_children(b)
         }
 
-        # TODO надо придумать что-то получше...
         children: dict[
             BasicBlock, tuple[ast.match_case | ast.stmt | None, list[BasicBlock]]
         ] = {}
@@ -176,16 +218,12 @@ class CDG:
             visited: list[BasicBlock] = []
 
             # Traverse backwards from B to L
-            for n in pdt.find_path(b, l):
-                if n is not l:
-                    # Nodes that postdominate B and don't postdominate A
-                    visited.append(n)
+            visited.extend([n for n in pdt.traverse_backward(b, l) if n is not l])
 
             if l is a:
                 # Add branching node itself
                 visited.append(l)
 
-            print(ast.unparse(a.get_label_to(b)), visited)
             children[a] = (a.get_label_to(b), visited)
 
         return cls(acfg.start_node, children)
@@ -194,7 +232,7 @@ class CDG:
         ids: dict[str, int] = {}
         order: list[BasicBlock] = []
         queue = deque([self._start_node])
-        
+
         while queue:
             block = queue.popleft()
             if block.name in ids:
@@ -203,16 +241,16 @@ class CDG:
             order.append(block)
             if block in self._children:
                 queue.extend(self._children[block][1])
-                
+
         lines: list[str] = []
         for block in order:
             lines.append(f"B{ids[block.name]}:")
             for stmt in block.stmts:
                 lines.extend("    " + line for line in ast.unparse(stmt).splitlines())
-                
+
             if block in self._children:
                 cond = self._children[block][0]
-                for target in self._children[block][1]:  
-                        label = "always" if cond is None else ast.unparse(cond)
-                        lines.append(f"    → B{ids[target.name]} [{label}]")
+                for target in self._children[block][1]:
+                    label = "always" if cond is None else ast.unparse(cond)
+                    lines.append(f"    → B{ids[target.name]} [{label}]")
         return "\n".join(lines)
