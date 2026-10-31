@@ -4,8 +4,6 @@ for i in range(3):
     for j in range(3):
         if j == i:
             break
-    else:
-        break
     for k in range(3):
         if k == 1:
             break

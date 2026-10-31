@@ -269,6 +269,9 @@ class CDG:
         order: list[BasicBlock] = []
         queue = deque([self._start_node])
 
+        is_start = lambda n: n is self._start_node
+        is_condition = lambda n: any(cond is not None for cond in n.edges)
+
         while queue:
             block = queue.popleft()
             if block in ppnames:
@@ -287,25 +290,33 @@ class CDG:
                 line + "\\l"
                 for stmt in block.stmts
                 for line in ast.unparse(stmt).replace("\\", "\\\\").splitlines()
-            )
-            is_condition = any(cond is not None for cond in block.edges)
+            ) if not is_start(block) else "start"
+
+            node_color = ""
+            if is_start(block) or block.is_end_block:
+                node_color = "lightblue"
+            elif is_condition(block):
+                node_color = "lightyellow"
+
             G.add_node(
                 ppnames[block],
                 label=node_label,
                 peripheries=2 if block.is_end_block else 1,
-                shape="diamond" if is_condition else "box",
-                style="filled" if is_condition else "",
-                fillcolor="lightyellow" if is_condition else "",
+                shape="diamond" if is_condition(block) else "box",
+                style="filled" if is_condition(block) else "",
+                fillcolor=node_color,
             )
 
             if block not in self._children:
                 continue
-            
+
             for cond, targets in self._children[block].items():
                 edge_label = (
                     "" if cond is None else ast.unparse(cond).replace("\\", "\\\\")
                 )
-                
+
                 for i, target in enumerate(targets):
-                    G.add_edge(ppnames[block], ppnames[target], label=f"({i})" + edge_label)
+                    G.add_edge(
+                        ppnames[block], ppnames[target], label=f"({i})" + edge_label
+                    )
         return G

@@ -107,8 +107,13 @@ class CFG:
             if block in visited:
                 continue
             visited.add(block)
+            
+            for stmt in block.stmts:
+                ast.fix_missing_locations(stmt)
 
             for key, child_block in block.edges.items():
+                if key is not None:
+                    ast.fix_missing_locations(key)
                 target: BasicBlock | None = child_block
                 while target is not None and (
                     target.is_empty_block and not target.is_end_block
@@ -152,6 +157,9 @@ class CFG:
         order: list[BasicBlock] = []
         queue = deque([self._root])
 
+        is_start = lambda n: n is self._root
+        is_condition = lambda n: any(cond is not None for cond in n.edges)
+
         while queue:
             block = queue.popleft()
             if block in ppnames:
@@ -164,19 +172,25 @@ class CFG:
 
         for block in order:
             # "\l" ends a left-justified line in Graphviz labels
-            node_label = "".join(
-                line + "\\l"
+            node_label = "\\n".join(
+                line
                 for stmt in block.stmts
                 for line in ast.unparse(stmt).replace("\\", "\\\\").splitlines()
             )
-            is_condition = any(cond is not None for cond in block.edges)
+
+            node_color = ""
+            if is_start(block) or block.is_end_block:
+                node_color = "lightblue"
+            elif is_condition(block):
+                node_color = "lightyellow"
+
             G.add_node(
                 ppnames[block],
                 label=node_label,
                 peripheries=2 if block.is_end_block else 1,
-                shape="diamond" if is_condition else "box",
-                style="filled" if is_condition else "",
-                fillcolor="lightyellow" if is_condition else "",
+                shape="diamond" if is_condition(block) else "box",
+                style="filled" if node_color else "",
+                fillcolor=node_color,
             )
 
             for cond, target in block.edges.items():
@@ -201,15 +215,18 @@ def _is_irrefutable(pattern: ast.pattern) -> bool:
 
 TRUE_STMT = _const(True)
 FALSE_STMT = _const(False)
+NONE_STMT = _const(None)
 
 
 class CFGBuilder:
     _ctx_break: list[BasicBlock]
     _ctx_continue: list[BasicBlock]
+    _ctx_for: int
 
     def __init__(self) -> None:
         self._ctx_break = []
         self._ctx_continue = []
+        self._ctx_for = -1
 
     def stmts_helper(
         self,
@@ -256,8 +273,7 @@ class CFGBuilder:
 
                 return if_join_block
             case ast.While():  # While(expr test, stmt* body, stmt* orelse)
-                while_cond = ast.copy_location(ast.While(stmt.test, [], []), stmt)
-                while_cond_block = BasicBlock(while_cond)
+                while_cond_block = BasicBlock(ast.Expr(stmt.test))
                 _cur.add_edge_to(while_cond_block)
                 while_join_block = BasicBlock()
 
@@ -287,23 +303,58 @@ class CFGBuilder:
 
                 return while_join_block
             case ast.Break():
-                _cur.append_stmt(stmt)
                 self._ctx_break.append(_cur)
                 return _cur
             case ast.Continue():
-                _cur.append_stmt(stmt)
                 self._ctx_continue.append(_cur)
                 return _cur
             case ast.For():  # For(expr target, expr iter, stmt* body, stmt* orelse, string? type_comment)
-                for_main_block = BasicBlock(
-                    ast.copy_location(ast.For(stmt.target, stmt.iter, [], []), stmt)
+                # https://docs.python.org/3/reference/compound_stmts.html#the-for-statement
+                self._ctx_for += 1
+
+                iter_obj_name = ast.Name(id=f"iter_{self._ctx_for}")
+                iter_obj = ast.Call(
+                    func=ast.Attribute(
+                        value=stmt.iter,
+                        attr="__iter__",
+                    ),
+                    args=[],
+                    keywords=[],
                 )
-                _cur.add_edge_to(for_main_block)
+
+                for_iter_creation_block = BasicBlock(
+                    ast.copy_location(
+                        ast.Assign(targets=[iter_obj_name], value=iter_obj), stmt
+                    )
+                )
+                _cur.add_edge_to(for_iter_creation_block)
+
+                for_next_block = BasicBlock(
+                    ast.Assign(
+                        targets=[stmt.target],
+                        value=ast.Call(
+                            func=ast.Name(id="next"),
+                            args=[
+                                iter_obj_name,
+                                ast.Constant(value=None),
+                            ],
+                            keywords=[],
+                        ),
+                    )
+                )
+                for_iter_creation_block.add_edge_to(for_next_block)
+
                 for_join_block = BasicBlock()
+                for_else_block = BasicBlock()
+                self.stmts_helper(stmt.orelse, for_else_block).add_edge_to(
+                    for_join_block
+                )
 
                 for_body_block = BasicBlock()
-                for_main_block.add_edge_to(for_body_block, ast.Expr(stmt.iter))
-                self.stmts_helper(stmt.body, for_body_block).add_edge_to(for_main_block)
+                for_next_block.add_edge_to(for_body_block, ast.Expr(stmt.target))
+                for_next_block.add_edge_to(for_else_block, NONE_STMT)
+
+                self.stmts_helper(stmt.body, for_body_block).add_edge_to(for_next_block)
 
                 while len(self._ctx_break) > cur_ctx_break:
                     for_break_block = self._ctx_break.pop(-1)
@@ -312,16 +363,9 @@ class CFGBuilder:
                 while len(self._ctx_continue) > cur_ctx_continue:
                     for_continue_block = self._ctx_continue.pop(-1)
                     for_continue_block.remove_edge(None)
-                    for_continue_block.add_edge_to(for_main_block)
-                if stmt.orelse:
-                    for_else_block = BasicBlock()
-                    for_main_block.add_edge_to(for_else_block, FALSE_STMT)
-                    self.stmts_helper(stmt.orelse, for_else_block).add_edge_to(
-                        for_join_block
-                    )
-                else:
-                    for_main_block.add_edge_to(for_join_block, FALSE_STMT)
+                    for_continue_block.add_edge_to(for_next_block)
 
+                self._ctx_for -= 1
                 return for_join_block
             case ast.Match():  # Match(expr subject, match_case* cases)
                 match_main_block = BasicBlock(
@@ -353,4 +397,4 @@ class CFGBuilder:
                 return match_join_block
             case _:
                 return _cur.append_stmt(stmt)
-        raise ValueError("???")
+        raise ValueError("Unable to recognize expression")
