@@ -107,7 +107,7 @@ class CFG:
             if block in visited:
                 continue
             visited.add(block)
-            
+
             for stmt in block.stmts:
                 ast.fix_missing_locations(stmt)
 
@@ -215,7 +215,7 @@ def _is_irrefutable(pattern: ast.pattern) -> bool:
 
 TRUE_STMT = _const(True)
 FALSE_STMT = _const(False)
-NONE_STMT = _const(None)
+STOP_ITERATION_STMT = ast.Expr(ast.Name(id="StopIteration"))
 
 
 class CFGBuilder:
@@ -314,18 +314,13 @@ class CFGBuilder:
 
                 iter_obj_name = ast.Name(id=f"iter_{self._ctx_for}")
                 iter_obj = ast.Call(
-                    func=ast.Attribute(
-                        value=stmt.iter,
-                        attr="__iter__",
-                    ),
-                    args=[],
+                    func=ast.Name(id="iter"),
+                    args=[stmt.iter],
                     keywords=[],
                 )
 
                 for_iter_creation_block = BasicBlock(
-                    ast.copy_location(
-                        ast.Assign(targets=[iter_obj_name], value=iter_obj), stmt
-                    )
+                    ast.Assign(targets=[iter_obj_name], value=iter_obj)
                 )
                 _cur.add_edge_to(for_iter_creation_block)
 
@@ -334,10 +329,7 @@ class CFGBuilder:
                         targets=[stmt.target],
                         value=ast.Call(
                             func=ast.Name(id="next"),
-                            args=[
-                                iter_obj_name,
-                                ast.Constant(value=None),
-                            ],
+                            args=[iter_obj_name],
                             keywords=[],
                         ),
                     )
@@ -352,7 +344,7 @@ class CFGBuilder:
 
                 for_body_block = BasicBlock()
                 for_next_block.add_edge_to(for_body_block, ast.Expr(stmt.target))
-                for_next_block.add_edge_to(for_else_block, NONE_STMT)
+                for_next_block.add_edge_to(for_else_block, STOP_ITERATION_STMT)
 
                 self.stmts_helper(stmt.body, for_body_block).add_edge_to(for_next_block)
 

@@ -2,13 +2,16 @@ B0:
     → B1 [True]
     → B2 [True]
     → B3 [True]
+    → B4 [True]
 B1:
-    for i in range(5):
-    → B4 [range(5)]
-    → B1 [range(5)]
+    iter_0 = iter(range(5))
 B2:
-    print('loop finished')
+    i = next(iter_0)
+    → B5 [i]
+    → B2 [i]
 B3:
-    print('end')
+    print('loop finished')
 B4:
+    print('end')
+B5:
     print(i)

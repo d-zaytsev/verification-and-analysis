@@ -2,26 +2,26 @@ B0:
     → B1 [True]
     → B2 [True]
     → B3 [True]
+    → B4 [True]
+    → B5 [True]
 B1:
-    for i in range(10):
-    → B4 [range(10)]
+    iter_0 = iter(range(10))
 B2:
-    for j in range(3):
-    → B5 [range(3)]
-    → B2 [range(3)]
+    i = next(iter_0)
+    → B6 [i]
 B3:
-    print('end')
+    iter_0 = iter(range(3))
 B4:
-    i == 3
-    → B6 [True]
-    → B7 [False]
+    j = next(iter_0)
+    → B7 [j]
+    → B4 [j]
 B5:
-    print(j)
+    print('end')
 B6:
-    break
+    i == 3
+    → B8 [False]
 B7:
-    i == 5
-    → B8 [True]
-    → B1 [False]
+    print(j)
 B8:
-    break
+    i == 5
+    → B2 [False]

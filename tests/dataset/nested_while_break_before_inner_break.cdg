@@ -5,7 +5,7 @@ B0:
 B1:
     i = 0
 B2:
-    while i < 5:
+    i < 5
     → B4 [True]
     → B5 [True]
 B3:
@@ -14,26 +14,20 @@ B4:
     i += 1
 B5:
     i == 4
-    → B6 [True]
+    → B6 [False]
     → B7 [False]
     → B8 [False]
-    → B9 [False]
     → B2 [False]
 B6:
-    break
-B7:
     j = 0
-B8:
-    while j < i:
+B7:
+    j < i
+    → B9 [True]
     → B10 [True]
-    → B11 [True]
-B9:
+B8:
     print(i, j)
-B10:
+B9:
     j += 1
-B11:
+B10:
     j == 2
-    → B12 [True]
-    → B8 [False]
-B12:
-    break
+    → B7 [False]

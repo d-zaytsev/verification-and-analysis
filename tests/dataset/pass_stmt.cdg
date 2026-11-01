@@ -5,7 +5,7 @@ B0:
 B1:
     x = 0
 B2:
-    while x < 3:
+    x < 3
     → B4 [True]
     → B5 [True]
     → B2 [True]

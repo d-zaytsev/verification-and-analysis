@@ -5,7 +5,7 @@ B0:
 B1:
     i = 0
 B2:
-    while i < 5:
+    i < 5
     → B4 [True]
     → B5 [True]
     → B2 [True]
@@ -15,15 +15,15 @@ B4:
     i += 1
 B5:
     i % 2 == 0
-    → B6 [True]
+    → B6 [False]
     → B7 [False]
     → B8 [False]
 B6:
-    continue
+    iter_0 = iter(range(i))
 B7:
-    for j in range(i):
-    → B9 [range(i)]
-    → B7 [range(i)]
+    j = next(iter_0)
+    → B9 [j]
+    → B7 [j]
 B8:
     print(i)
 B9:

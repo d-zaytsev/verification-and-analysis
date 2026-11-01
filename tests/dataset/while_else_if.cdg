@@ -6,7 +6,7 @@ B0:
 B1:
     i = 0
 B2:
-    while i < 10:
+    i < 10
     → B5 [True]
     → B6 [True]
     → B2 [True]

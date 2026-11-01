@@ -1,10 +1,13 @@
 B0:
     → B1 [True]
     → B2 [True]
+    → B3 [True]
 B1:
-    for i in range(3):
-    → B3 [range(3)]
-    → B1 [range(3)]
+    iter_0 = iter(range(3))
 B2:
+    i = next(iter_0)
+    → B4 [i]
+    → B2 [i]
 B3:
+B4:
     print(i)

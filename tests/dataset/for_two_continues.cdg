@@ -1,23 +1,20 @@
 B0:
     → B1 [True]
     → B2 [True]
+    → B3 [True]
 B1:
-    for i in range(10):
-    → B3 [range(10)]
-    → B1 [range(10)]
+    iter_0 = iter(range(10))
 B2:
-    print('end')
+    i = next(iter_0)
+    → B4 [i]
+    → B2 [i]
 B3:
-    i % 2 == 0
-    → B4 [True]
-    → B5 [False]
+    print('end')
 B4:
-    continue
+    i % 2 == 0
+    → B5 [False]
 B5:
     i % 3 == 0
-    → B6 [True]
-    → B7 [False]
+    → B6 [False]
 B6:
-    continue
-B7:
     print(i)
