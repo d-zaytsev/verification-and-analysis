@@ -7,18 +7,21 @@ B1:
 B2:
     i = next(iter_0)
     → B4 [i]
-    → B5 [StopIteration]
+    → B5 [i]
+    → B6 [StopIteration]
 B3:
     print('end')
 B4:
+    print('Enter loop')
+B5:
     i % 2 == 0
     → B2 [True]
-    → B6 [False]
-B5:
-    print('no break')
-B6:
-    i > 7
     → B7 [False]
-    → B2 [False]
+B6:
+    print('no break')
 B7:
+    i > 7
+    → B8 [False]
+    → B2 [False]
+B8:
     print(i)

@@ -197,7 +197,14 @@ class CFG:
                 edge_label = (
                     "" if cond is None else ast.unparse(cond).replace("\\", "\\\\")
                 )
-                G.add_edge(ppnames[block], ppnames[target], label=edge_label)
+                edge_attrs = {}
+                if cond is TRUE_STMT:
+                    edge_attrs["color"] = "green"
+                elif cond is FALSE_STMT:
+                    edge_attrs["color"] = "red"
+                G.add_edge(
+                    ppnames[block], ppnames[target], label=edge_label, **edge_attrs
+                )
         return G
 
 
