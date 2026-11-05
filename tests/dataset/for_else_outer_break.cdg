@@ -1,0 +1,17 @@
+B0:
+    → B1 [True]
+    → B2 [True]
+    → B3 [True]
+B1:
+    iter_0 = iter([1, 2])
+B2:
+    i = next(iter_0)
+    → B4 [i]
+    → B5 [i]
+B3:
+    print('done')
+B4:
+    iter_1 = iter([])
+B5:
+    j = next(iter_1)
+    → B5 [j]

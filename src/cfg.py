@@ -338,9 +338,6 @@ class CFGBuilder:
 
                 for_join_block = BasicBlock()
                 for_else_block = BasicBlock()
-                self.stmts_helper(stmt.orelse, for_else_block).add_edge_to(
-                    for_join_block
-                )
 
                 for_body_block = BasicBlock()
                 for_next_block.add_edge_to(for_body_block, ast.Expr(stmt.target))
@@ -356,6 +353,10 @@ class CFGBuilder:
                     for_continue_block = self._ctx_continue.pop(-1)
                     for_continue_block.remove_edge(None)
                     for_continue_block.add_edge_to(for_next_block)
+
+                self.stmts_helper(stmt.orelse, for_else_block).add_edge_to(
+                    for_join_block
+                )
 
                 self._ctx_for -= 1
                 return for_join_block
